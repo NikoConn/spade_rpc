@@ -8,6 +8,10 @@ from spade.agent import Agent
 from loguru import logger
 
 class RPCAgent(Agent):
+    """
+    Agent with the capabilities to perform RPC (Remote procedure calls).
+    It includes registering and calling methods on other agents.
+    """
     def __init__(self, jid: str, password: str, *args, **kwargs):
         super().__init__(jid, password, *args, **kwargs)
 
@@ -20,6 +24,10 @@ class RPCAgent(Agent):
         self.rpc = self.RPCComponent(self.client)
     
     class RPCComponent:
+        """
+        Component for providing RPCAgents the XEP-009 Jabber RPC service.
+        """
+
         type_class = {
             int: rpc_xso.i4,
             int: rpc_xso.integer,
@@ -40,6 +48,11 @@ class RPCAgent(Agent):
             self.rpc_server = self.client.summon(aioxmpp.RPCServer)
 
         def parse_param(self, param):
+            """
+            This function parses a param or list of params into the appropiate rpc_xso class.
+            param: a python parameter.
+            returns rpc_xso.Value class with the corresponding rpc_xso value.
+            """
             if type(param) == list:
                 value = rpc_xso.array(rpc_xso.data([self.parse_param(x) for x in param]))
             elif type(param) == dict:
@@ -51,9 +64,19 @@ class RPCAgent(Agent):
             return rpc_xso.Value(value)
 
         def parse_params(self, params):
+            """
+            This function parses the list of params into the corresponding rpc_xso.Param class.
+            params: list of params to be parsed
+            returns rpc_xso.Params with the list of rcp_xso parameters
+            """
             return rpc_xso.Params([rpc_xso.Param(self.parse_param(x)) for x in params])
 
         def get_param(self, xso_param):
+            """
+            This function parses a rpc_xso param into a python usable param.
+            xso_param: rpc_xso param to be parsed.
+            returns corresponding python usable param
+            """
             if type(xso_param) == rpc_xso.array:
                 return [self.get_param(x.value) for x in xso_param.data.data]
             elif type(xso_param) == rpc_xso.struct:
@@ -62,15 +85,26 @@ class RPCAgent(Agent):
                 return self.class_type[type(xso_param)](xso_param.value)
 
         def get_params(self, xso_params):
+            """
+            This function parses the list of rpc_xso params into python usable params.
+            xso_param: xso_params to be parsed
+            returns list of corresponding python usable param
+            """
             return [self.get_param(param.value.value) for param in xso_params.params]
 
-        async def call_method(self, jid, methodName, params):
+        async def call_method(self, jid, method_name, params):
+            """
+            This method is used to make an rpc call to the corresponding jid with the given parameters
+            jid: JID of the peer to query
+            methodName: Name of the method to perform the call
+            params: Param or list of params to perform the call
+            """
             if not isinstance(params, list):
                 params = [params]
 
             query = rpc_xso.Query(
                 rpc_xso.MethodCall(
-                    rpc_xso.MethodName(methodName),
+                    rpc_xso.MethodName(method_name),
                     self.parse_params(params)
                 )
             )
@@ -79,6 +113,12 @@ class RPCAgent(Agent):
             return self.get_params(response.payload.params)
 
         def register_method(self, handler, method_name=None, is_allowed=None):
+            """
+            This method is used to register an rpc method
+            handler: function to perform when called
+            method_name: name of the method to be called
+            is_allowed: function that is called to find out if the method can be executed by the JID that calls it
+            """
             def method_wrapper(stanza):
                 params = self.get_params(stanza.payload.payload.params)
 
@@ -98,4 +138,8 @@ class RPCAgent(Agent):
             return self.rpc_server.register_method(method_wrapper, method_name, is_allowed)
 
         def unregister_method(self, method_name):
+            """
+            This method unregisters a previously registered method
+            method_name: name of the method to be unregistered
+            """
             return self.rpc_server.unregister_method(self, method_name)

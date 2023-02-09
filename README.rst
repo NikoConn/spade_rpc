@@ -20,13 +20,58 @@ Plugin for SPADE platform to implement rpc protocol on agents
 
 
 * Free software: MIT license
-* Documentation: https://spade-rpc.readthedocs.io.
+* Documentation: https://spade-rpc.readthedocs.io. (TODO)
 
 
 Features
 --------
 
-* TODO
+* Create agents that can use the Jabber RPC protocol
+* Call methods on remote agents
+* Register/unregister methods on agents
+
+Examples
+--------
+
+Calling a method:
+
+::
+
+    from spade_rpc import RPCAgent
+
+    rpc_client = RPCAgent(client_jid)
+    result = rpc_client.rpc.call_method(server_jid, 'sum', [1, 2])
+    print(result)
+
+::
+
+Registering a method:
+
+::
+
+    from spade_rpc import RPCAgent
+
+    def sum(a, b):
+            return a + b
+
+    rpc_server = RPCAgent(server_jid)
+    rpc_server.rpc.register_method(sum, 'sum')
+
+::
+
+A client serving a method can also define a function for selecting if the methdod is allowed to be called
+
+::
+
+    def is_allowed(jid):
+            return jid in ['foo', 'bar']
+
+    rpc_server = RPCAgent(server_jid)
+    rpc_server.rpc.register_method(sum, 'sum', is_allowed)
+
+::
+
+More complete examples can be found in the `examples folder <examples>`_
 
 Credits
 -------
